@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Security Vulnerability Lab</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-title">Security Vulnerability Lab</div>
+        <div class="header-logos">
+            <img src="/static/images/PUCIT_Logo.png" alt="PUCIT logo">
+            <img src="/static/images/blue-logo-scl2.png" alt="Organization logo">
+            <img src="/static/images/excaliat-logo.png" alt="Excaliat logo">
+        </div>
+    </header>
+
+    <main class="auth-split">
+        <section class="auth-left">
+            <div class="decorative-circle circle-1"></div>
+            <div class="decorative-circle circle-2"></div>
+            <div class="decorative-circle circle-3"></div>
+            <span class="auth-badge">Security Education</span>
+            <h1 class="auth-heading">Join the Security Lab</h1>
+            <p class="auth-description">
+                Create an account to start exploring 8 intentionally vulnerable
+                flows built for hands-on OWASP Top 10 practice.
+            </p>
+            <ul class="auth-bullets">
+                <li>Exploit SQL injection, XSS, and more</li>
+                <li>Trace each flaw to its root cause</li>
+                <li>Practice remediation techniques</li>
+            </ul>
+        </section>
+
+        <section class="auth-right">
+            <form id="signup-form" class="auth-form" action="/signup" method="POST" novalidate>
+                <h2 class="form-title">Sign Up</h2>
+                <p class="form-subtitle">Create your account to access the lab</p>
+
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" autocomplete="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" autocomplete="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="new-password" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+                    <span id="password-mismatch" class="field-error" style="display: none;">Passwords do not match</span>
+                </div>
+
+                <button type="submit" class="btn-primary">Sign Up</button>
+
+                <p class="auth-link">Already have an account? <a href="/login">Log in</a></p>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const signupForm = document.getElementById('signup-form');
+        const passwordInput = document.getElementById('password');
+        const confirmInput = document.getElementById('confirm_password');
+        const mismatchEl = document.getElementById('password-mismatch');
+
+        function passwordsMatch() {
+            return passwordInput.value === confirmInput.value;
+        }
+
+        confirmInput.addEventListener('input', function () {
+            mismatchEl.style.display = (!passwordsMatch() && confirmInput.value.length > 0) ? 'block' : 'none';
+        });
+
+        signupForm.addEventListener('submit', function (e) {
+            if (!passwordsMatch()) {
+                e.preventDefault();
+                mismatchEl.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

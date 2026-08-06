@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Security Vulnerability Lab</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="dashboard-body">
+    <header class="app-header">
+        <div class="header-title">Security Vulnerability Lab</div>
+        <div class="header-logos">
+            <img src="/static/images/PUCIT_Logo.png" alt="PUCIT logo">
+            <img src="/static/images/blue-logo-scl2.png" alt="Organization logo">
+            <img src="/static/images/excaliat-logo.png" alt="Excaliat logo">
+        </div>
+    </header>
+
+    <section class="hero-banner">
+        <div class="hero-left">
+            <h1 class="hero-title">Security Vulnerability Lab</h1>
+            <p class="hero-subtitle">Find it. Exploit it. Fix it.</p>
+        </div>
+        <div class="hero-right">
+            <span class="user-badge">Logged in as {{username}}</span>
+            <a href="/logout" class="logout-btn">Log Out</a>
+        </div>
+    </section>
+
+    <main class="content-area">
+        <div class="mission-card">
+            <h2 class="section-title">Our Mission</h2>
+            <p class="section-body">
+                This application was built with 8 deliberate security flaws so you
+                can practice identifying, exploiting, and remediating real-world
+                vulnerabilities in a safe, controlled environment. Explore the
+                source code, try the exploits below, and then patch each one
+                yourself.
+            </p>
+        </div>
+
+        <h3 class="vuln-section-header">Vulnerabilities to Discover</h3>
+        <div class="vuln-grid">
+            <div class="vuln-card">
+                <span class="vuln-tag tag-sqli">SQLi</span>
+                <h4 class="card-title">SQL Injection</h4>
+                <p class="card-body">Login and signup build SQL queries via string concatenation. Try bypassing authentication with a crafted username.</p>
+            </div>
+            <div class="vuln-card">
+                <span class="vuln-tag tag-xss">XSS</span>
+                <h4 class="card-title">Stored XSS</h4>
+                <p class="card-body">Your username is reflected here without escaping. Register a username containing a script payload and see what happens.</p>
+            </div>
+            <div class="vuln-card">
+                <span class="vuln-tag tag-xss">XSS</span>
+                <h4 class="card-title">Reflected XSS</h4>
+                <p class="card-body">The /search endpoint reflects your query directly into the page. Try injecting a script via the q parameter.</p>
+            </div>
+            <div class="vuln-card">
+                <span class="vuln-tag tag-session">Session</span>
+                <h4 class="card-title">Session Hijacking</h4>
+                <p class="card-body">The session signing key is hardcoded in source. Inspect your session cookie and consider what that means.</p>
+            </div>
+            <div class="vuln-card">
+                <span class="vuln-tag tag-crypto">Crypto</span>
+                <h4 class="card-title">Weak Password Storage</h4>
+                <p class="card-body">Passwords are hashed with unsalted MD5. Download the database and see how easily hashes can be reversed.</p>
+            </div>
+            <div class="vuln-card">
+                <span class="vuln-tag tag-exposed">Exposed</span>
+                <h4 class="card-title">Exposed Database</h4>
+                <p class="card-body">The full SQLite database is downloadable with no authentication at all. Find the endpoint.</p>
+            </div>
+            <div class="vuln-card">
+                <span class="vuln-tag tag-brute">Brute</span>
+                <h4 class="card-title">No Rate Limiting</h4>
+                <p class="card-body">Nothing throttles login attempts. Consider what an automated script could do here.</p>
+            </div>
+            <div class="vuln-card">
+                <span class="vuln-tag tag-csrf">CSRF</span>
+                <h4 class="card-title">CSRF</h4>
+                <p class="card-body">No form on this site carries a CSRF token. A malicious page could submit these forms on your behalf.</p>
+            </div>
+        </div>
+
+        <div class="process-steps">
+            <div class="process-card">
+                <span class="step-badge">1</span>
+                <h4 class="step-title">Find</h4>
+                <p class="step-body">Read the source code and locate each vulnerability's root cause.</p>
+            </div>
+            <div class="process-card">
+                <span class="step-badge">2</span>
+                <h4 class="step-title">Exploit</h4>
+                <p class="step-body">Craft a real attack payload and confirm the flaw is exploitable.</p>
+            </div>
+            <div class="process-card">
+                <span class="step-badge">3</span>
+                <h4 class="step-title">Mitigate</h4>
+                <p class="step-body">Apply the secure coding practice that closes the flaw for good.</p>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Security Vulnerability Lab</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-title">Security Vulnerability Lab</div>
+        <div class="header-logos">
+            <img src="/static/images/PUCIT_Logo.png" alt="PUCIT logo">
+            <img src="/static/images/blue-logo-scl2.png" alt="Organization logo">
+            <img src="/static/images/excaliat-logo.png" alt="Excaliat logo">
+        </div>
+    </header>
+
+    <main class="auth-split">
+        <section class="auth-left">
+            <div class="decorative-circle circle-1"></div>
+            <div class="decorative-circle circle-2"></div>
+            <div class="decorative-circle circle-3"></div>
+            <span class="auth-badge">Security Education</span>
+            <h1 class="auth-heading">Welcome Back, Learner</h1>
+            <p class="auth-description">
+                Sign in to continue your hands-on journey through the OWASP Top 10.
+                This lab lets you exploit real vulnerabilities in a safe, controlled
+                environment.
+            </p>
+            <ul class="auth-bullets">
+                <li>Practice real-world attack techniques</li>
+                <li>Study the vulnerable source code</li>
+                <li>Learn to remediate each flaw</li>
+            </ul>
+        </section>
+
+        <section class="auth-right">
+            <form id="login-form" class="auth-form" novalidate>
+                <h2 class="form-title">Log In</h2>
+                <p class="form-subtitle">Enter your credentials to access the lab</p>
+
+                <div id="login-error" class="form-error" style="display: none;"></div>
+
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" autocomplete="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
+                </div>
+
+                <button type="submit" class="btn-primary">Log In</button>
+
+                <p class="auth-link">Don't have an account? <a href="/signup">Sign up</a></p>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const errorEl = document.getElementById('login-error');
+            errorEl.style.display = 'none';
+
+            const formData = new FormData(this);
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    errorEl.textContent = data.error || 'Invalid username or password.';
+                    errorEl.style.display = 'block';
+                }
+            } catch (err) {
+                errorEl.textContent = 'Something went wrong. Please try again.';
+                errorEl.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
