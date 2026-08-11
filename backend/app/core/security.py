@@ -1,13 +1,18 @@
-import hashlib
+import bcrypt
 
-# VULN-5: Weak Password Storage (intentional).
-# MD5 with no salt, no pepper, no key-derivation function. Do not "fix" this here --
-# bcrypt/argon2 migration is a later, separate exercise.
+# VULN-5 remediated: bcrypt (work factor 12) replaces unsalted MD5.
+# See .claude/specs/bcrypt-password-hashing.md.
+
+BCRYPT_ROUNDS = 12
 
 
 def hash_password(password: str) -> str:
-    return hashlib.md5(password.encode()).hexdigest()
+    salt = bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
+    return bcrypt.hashpw(password.encode(), salt).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return hash_password(plain) == hashed
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except ValueError:
+        return False
