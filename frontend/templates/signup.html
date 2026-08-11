@@ -4,7 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Security Vulnerability Lab</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css?v=darkmode1">
+    <script>
+        (function () {
+            var storedTheme = null;
+            try {
+                storedTheme = localStorage.getItem('theme');
+            } catch (err) {
+                storedTheme = null;
+            }
+            var theme = (storedTheme === 'light' || storedTheme === 'dark')
+                ? storedTheme
+                : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 </head>
 <body>
     <header class="app-header">
@@ -13,6 +27,7 @@
             <img src="/static/images/PUCIT_Logo.png" alt="PUCIT logo">
             <img src="/static/images/blue-logo-scl2.png" alt="Organization logo">
             <img src="/static/images/excaliat-logo.png" alt="Excaliat logo">
+            <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch to dark mode">&#9788;</button>
         </div>
     </header>
 
@@ -66,6 +81,36 @@
             </form>
         </section>
     </main>
+
+    <script>
+        (function () {
+            var toggleBtn = document.getElementById('theme-toggle');
+
+            function syncToggleUI(theme) {
+                if (theme === 'dark') {
+                    toggleBtn.textContent = '☾';
+                    toggleBtn.setAttribute('aria-label', 'Switch to light mode');
+                } else {
+                    toggleBtn.textContent = '☀';
+                    toggleBtn.setAttribute('aria-label', 'Switch to dark mode');
+                }
+            }
+
+            syncToggleUI(document.documentElement.getAttribute('data-theme') || 'light');
+
+            toggleBtn.addEventListener('click', function () {
+                var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+                var next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                syncToggleUI(next);
+                try {
+                    localStorage.setItem('theme', next);
+                } catch (err) {
+                    /* localStorage unavailable; theme still applied for this page view */
+                }
+            });
+        })();
+    </script>
 
     <script>
         const signupForm = document.getElementById('signup-form');
