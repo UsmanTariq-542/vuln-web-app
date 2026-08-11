@@ -18,6 +18,9 @@ wheels/
 .env
 .env.local
 
+# Secrets
+passwords.txt
+
 # OS files
 .DS_Store
 Thumbs.db
