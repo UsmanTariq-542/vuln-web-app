@@ -3,7 +3,7 @@ import sqlite3
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.db.session import get_db
 
 # VULN-1: SQL Injection (intentional).
@@ -38,17 +38,12 @@ def login(request: Request, username: str, password: str):
     if not username or not password:
         return JSONResponse({"success": False, "error": "Username and password are required."}, status_code=401)
 
-    hashed = hash_password(password)
-
     conn = get_db()
-    query = (
-        "SELECT * FROM users WHERE username = '" + username
-        + "' AND password = '" + hashed + "'"
-    )
+    query = "SELECT * FROM users WHERE username = '" + username + "'"
     row = conn.execute(query).fetchone()
     conn.close()
 
-    if row is None:
+    if row is None or not verify_password(password, row["password"]):
         return JSONResponse({"success": False, "error": "Invalid username or password."}, status_code=401)
 
     request.session["user_id"] = row["id"]
