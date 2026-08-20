@@ -1,0 +1,7 @@
+Read .claude/specs/stored-xss-fix-plan.md and implement it phase by phase, following it exactly.
+Only touch the files the plan names. Do NOT change any other route, any SQL, session/cookie
+config, or middleware, and do NOT alter any other vulnerability.
+
+After implementing, remind me to restart the server, register/log in with a username containing
+<script>alert(1)</script>, and confirm the dashboard shows it as escaped literal text rather than
+executing it; then walk through the plan's other verification steps and report the result.

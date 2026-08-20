@@ -1,0 +1,34 @@
+You are working in the 'vuln-web-app' repository.
+
+READ first, to ground the spec in the real code and house style:
+- .claude/specs/app-foundation.md (study its section structure and style)
+- backend/app/api/routes/auth.py (focus on welcome_page())
+- frontend/templates/dashboard.html
+- CLAUDE.md (Vulnerability Map + Important Rules, for exact current status of VULN-2)
+
+Then CREATE EXACTLY ONE file and nothing else: .claude/specs/stored-xss-fix.md.
+Do NOT write any source code, plan file, or modify any existing file.
+
+The spec MUST follow the same documentation style as .claude/specs/app-foundation.md and
+contain these sections, in order:
+- Title and one-paragraph Overview / Purpose
+- Scope & Non-Goals (state this closes VULN-2 ONLY; VULN-3, VULN-6, VULN-7, VULN-8 remain
+  intentionally unfixed and must not be touched)
+- Affected Files (exact repository paths)
+- Functional Requirements (FR-XX), Non-Functional Requirements (NFR-XX)
+- Success Paths (SP-XX), Edge Cases (EC-XX), Acceptance Criteria (AC-XX)
+- Test Cases (table: ID | Scenario | Precondition | Expected Result)
+- Verification Steps (exact commands and URLs)
+
+Fix content:
+In welcome_page() (backend/app/api/routes/auth.py), HTML-escape request.session["username"]
+(Python stdlib html.escape(), no new dependency) before substituting it into the {{username}}
+placeholder. Keep the exact same template mechanism — dashboard.html is still read fresh from
+disk per request and substituted via str.replace(); only the value being substituted changes,
+not the mechanism itself. Do not introduce a template engine. Do not touch /search (VULN-3),
+/download/db (VULN-6), rate limiting (VULN-7), or CSRF (VULN-8). Include attack/edge test cases:
+a username stored as <script>alert(1)</script> renders as literal escaped text, not an executing
+script; a username containing &, <, >, ", ' each render escaped correctly; a normal alphanumeric
+username is visually unchanged.
+
+Output only that one spec file. Confirm the path when done.

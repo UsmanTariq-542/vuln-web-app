@@ -1,0 +1,34 @@
+You are working in the 'vuln-web-app' repository.
+
+READ first, to ground the spec in the real code and house style:
+- .claude/specs/app-foundation.md (study its section structure and style)
+- backend/app/api/routes/auth.py (focus on download_db() and welcome_page(), which already has
+  the session-check pattern to reuse)
+- CLAUDE.md (Vulnerability Map + Important Rules, for exact current status of VULN-6)
+
+Then CREATE EXACTLY ONE file and nothing else: .claude/specs/exposed-database-fix.md.
+Do NOT write any source code, plan file, or modify any existing file.
+
+The spec MUST follow the same documentation style as .claude/specs/app-foundation.md and
+contain these sections, in order:
+- Title and one-paragraph Overview / Purpose
+- Scope & Non-Goals (state this closes VULN-6 ONLY; VULN-2, VULN-3, VULN-7, VULN-8 remain
+  intentionally unfixed. Note there is no role/admin system in this app, so the fix is
+  "authenticated users only," not "admin only" — state this limitation explicitly as a
+  known non-goal rather than silently under-scoping)
+- Affected Files (exact repository paths)
+- Functional Requirements (FR-XX), Non-Functional Requirements (NFR-XX)
+- Success Paths (SP-XX), Edge Cases (EC-XX), Acceptance Criteria (AC-XX)
+- Test Cases (table: ID | Scenario | Precondition | Expected Result)
+- Verification Steps (exact commands and URLs)
+
+Fix content:
+In download_db() (backend/app/api/routes/auth.py), add the same session check already used in
+welcome_page() — if "user_id" not in request.session: redirect to /login (302) — before serving
+the FileResponse. Route signature must gain a Request parameter to read the session. Do not add
+a new role/permission system; any authenticated user may still download the file, only
+unauthenticated access is blocked. Closes vulnerability #6 only. Include test cases: an
+unauthenticated GET /download/db redirects to /login instead of returning the file; an
+authenticated request (valid session cookie) still successfully downloads the file unchanged.
+
+Output only that one spec file. Confirm the path when done.

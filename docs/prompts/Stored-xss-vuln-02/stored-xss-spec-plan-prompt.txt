@@ -1,0 +1,11 @@
+Read .claude/specs/stored-xss-fix.md (and re-read docs/TDD.md, backend/app/api/routes/auth.py,
+frontend/templates/dashboard.html).
+
+Based on the spec, write a detailed, phase-by-phase implementation plan and save it ONLY as
+.claude/specs/stored-xss-fix-plan.md.
+
+Do NOT write or modify any source code in this step — produce the plan document only.
+The plan must list, per phase: the exact welcome_page() change (import html; html.escape(...)
+wrapping the session username before the .replace() call), confirmation that dashboard.html
+itself is untouched, and the verification steps from the spec. Do NOT change any other route,
+any SQL, session/cookie config, or middleware. Preserve all other intentional vulnerabilities.

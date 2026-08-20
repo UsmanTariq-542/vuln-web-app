@@ -1,3 +1,4 @@
+import html
 from pathlib import Path
 
 from fastapi import APIRouter, Form, Request
@@ -84,12 +85,13 @@ def welcome_page(request: Request):
     if "user_id" not in request.session:
         return RedirectResponse(url="/login", status_code=302)
 
-    # VULN-2: Stored XSS (intentional). The username is substituted into the
-    # template with no escaping -- a username stored with a <script>/<img
-    # onerror> payload executes here on every load.
-    html = _read_template("dashboard.html")
-    html = html.replace("{{username}}", request.session["username"])
-    return HTMLResponse(html)
+    # VULN-2 remediated: the username is HTML-escaped before substitution so
+    # a stored <script>/<img onerror> payload renders as inert literal text
+    # instead of executing. See .claude/specs/stored-xss-fix.md.
+    page_html = _read_template("dashboard.html")
+    safe_username = html.escape(request.session["username"])
+    page_html = page_html.replace("{{username}}", safe_username)
+    return HTMLResponse(page_html)
 
 
 @router.get("/logout")

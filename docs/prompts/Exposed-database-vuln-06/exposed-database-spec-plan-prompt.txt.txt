@@ -1,0 +1,10 @@
+Read .claude/specs/exposed-database-fix.md (and re-read docs/TDD.md, backend/app/api/routes/auth.py).
+
+Based on the spec, write a detailed, phase-by-phase implementation plan and save it ONLY as
+.claude/specs/exposed-database-fix-plan.md.
+
+Do NOT write or modify any source code in this step — produce the plan document only.
+The plan must list, per phase: the exact signature change to download_db() (adding request: Request),
+the exact session-check + redirect logic (mirroring welcome_page()), and the verification steps
+from the spec. Do NOT change any other route, any SQL, session/cookie config, or middleware.
+Preserve all other intentional vulnerabilities.

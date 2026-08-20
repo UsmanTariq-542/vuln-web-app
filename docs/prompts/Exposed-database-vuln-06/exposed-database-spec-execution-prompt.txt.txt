@@ -1,0 +1,7 @@
+Read .claude/specs/exposed-database-fix-plan.md and implement it phase by phase, following it
+exactly. Only touch backend/app/api/routes/auth.py (download_db() only). Do NOT change any other
+route or vulnerability.
+
+After implementing, remind me to restart the server and test: (a) GET /download/db while logged
+out redirects to /login, (b) GET /download/db while logged in (valid cookies.txt) still downloads
+the file successfully; then report the result.
