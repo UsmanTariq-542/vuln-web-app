@@ -13,7 +13,8 @@ An intentionally vulnerable web application built for hands-on OWASP Top 10 secu
 - **VULN-5 (Weak Password Storage) — remediated (`v0.1.1`):** unsalted MD5 has been replaced with bcrypt (work factor ≥ 12) as a spec-driven remediation exercise.
 - **VULN-1 (SQL Injection) — remediated (`v0.1.2`):** `signup()`'s `INSERT` and `login()`'s `SELECT` in `auth_service.py` now use parameterized queries (`?` placeholders + bound tuples) instead of string concatenation.
 - **VULN-4 (Session Hijacking) — remediated:** the hardcoded `SECRET_KEY = "super-secret-key-12345"` literal in `main.py` has been replaced with a value sourced from the `SECRET_KEY` environment variable (falling back to an ephemeral `secrets.token_hex(32)` key with a startup warning if unset), and the `SessionMiddleware` registration now sets `https_only=True` and `max_age=1800` (30-minute session expiry, down from Starlette's 14-day default).
-- **VULN-2 (Stored XSS) — remediated (`v0.1.4`):** `welcome_page()` in `auth.py` now passes the session's `username` through Python's standard-library `html.escape()` before substituting it into `dashboard.html`'s `{{username}}` placeholder, so a username stored as `<script>alert(1)</script>` (or any other markup/attribute-breakout payload) renders as inert, literal escaped text instead of executing. **4 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
+- **VULN-2 (Stored XSS) — remediated (`v0.1.4`):** `welcome_page()` in `auth.py` now passes the session's `username` through Python's standard-library `html.escape()` before substituting it into `dashboard.html`'s `{{username}}` placeholder, so a username stored as `<script>alert(1)</script>` (or any other markup/attribute-breakout payload) renders as inert, literal escaped text instead of executing.
+- **VULN-6 (Exposed Database) — remediated:** `download_db()` in `auth.py` now requires an authenticated session — a request with no `user_id` in `request.session` is redirected to `/login` (302) instead of receiving the SQLite file. This app has no role/admin system, so the fix is "authenticated users only," not "admin only": any logged-in user (including one who just self-registered) can still download the full database, including other users' rows. This is a documented, intentional residual limitation — see `.claude/specs/exposed-database-fix.md`. **3 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
 
 ## Getting Started
 
@@ -46,7 +47,7 @@ backend/app/
 ├── core/security.py           # Password hashing: bcrypt, work factor 12 (VULN-5 remediated)
 ├── db/session.py              # SQLite connection + init_db()
 ├── services/auth_service.py   # signup()/login() business logic (VULN-1 remediated — parameterized queries)
-└── api/routes/auth.py         # HTTP route handlers (VULN-2 remediated; VULN-3, VULN-6 — unremediated)
+└── api/routes/auth.py         # HTTP route handlers (VULN-2, VULN-6 remediated; VULN-3 — unremediated)
 
 frontend/
 ├── templates/                 # login.html, signup.html, dashboard.html — read from disk per request, no caching
@@ -68,7 +69,7 @@ frontend/
 | 3 | Reflected XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`/search`) |
 | 4 | Session Hijacking | **Remediated** (env-sourced `SECRET_KEY`, `https_only`, `max_age=1800`) | `backend/app/main.py` |
 | 5 | Weak Password Storage | **Remediated** (bcrypt, work factor ≥ 12) | `backend/app/core/security.py` |
-| 6 | Exposed Database | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`GET /download/db`) |
+| 6 | Exposed Database | **Remediated** (session check on `GET /download/db`; authenticated-only, no role/admin tier) | `backend/app/api/routes/auth.py` |
 | 7 | No Rate Limiting | Unfixed (intentional) | *(absence of throttling middleware)* |
 | 8 | CSRF | Unfixed (intentional) | *(absence of CSRF tokens/middleware)* |
 
@@ -82,6 +83,7 @@ Every feature and remediation in this repo is spec-driven. See `.claude/specs/`:
 - `sql-injection-fix.md` / `sql-injection-fix-plan.md` — the VULN-1 remediation.
 - `session-hijacking-fix.md` / `session-hijacking-fix-plan.md` — the VULN-4 remediation.
 - `stored-xss-fix.md` / `stored-xss-fix-plan.md` — the VULN-2 remediation.
+- `exposed-database-fix.md` / `exposed-database-fix-plan.md` — the VULN-6 remediation.
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.
 
