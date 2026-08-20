@@ -10,7 +10,8 @@ An intentionally vulnerable web application built for hands-on OWASP Top 10 secu
 
 - **Baseline (`v0.1.0`):** all 8 vulnerabilities present and intentional.
 - **Dark mode toggle:** a purely presentational light/dark theme switch has been added on top of the baseline (login, signup, dashboard). It does not touch any vulnerability.
-- **VULN-5 (Weak Password Storage) — remediated:** unsalted MD5 has been replaced with bcrypt (work factor ≥ 12) as a spec-driven remediation exercise. **7 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
+- **VULN-5 (Weak Password Storage) — remediated (`v0.1.1`):** unsalted MD5 has been replaced with bcrypt (work factor ≥ 12) as a spec-driven remediation exercise.
+- **VULN-1 (SQL Injection) — remediated (`v0.1.2`):** `signup()`'s `INSERT` and `login()`'s `SELECT` in `auth_service.py` now use parameterized queries (`?` placeholders + bound tuples) instead of string concatenation. **6 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
 
 ## Getting Started
 
@@ -35,7 +36,7 @@ backend/app/
 ├── main.py                    # Entry point, session middleware, static mounts, DB init
 ├── core/security.py           # Password hashing: bcrypt, work factor 12 (VULN-5 remediated)
 ├── db/session.py              # SQLite connection + init_db()
-├── services/auth_service.py   # signup()/login() business logic (VULN-1 — unremediated)
+├── services/auth_service.py   # signup()/login() business logic (VULN-1 remediated — parameterized queries)
 └── api/routes/auth.py         # HTTP route handlers (VULN-2, VULN-3, VULN-6 — unremediated)
 
 frontend/
@@ -53,7 +54,7 @@ frontend/
 
 | # | Vulnerability | Status | Location |
 |---|---|---|---|
-| 1 | SQL Injection | Unfixed (intentional) | `backend/app/services/auth_service.py` |
+| 1 | SQL Injection | **Remediated** (parameterized queries) | `backend/app/services/auth_service.py` |
 | 2 | Stored XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`/welcome`) |
 | 3 | Reflected XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`/search`) |
 | 4 | Session Hijacking | Unfixed (intentional) | `backend/app/main.py` (hardcoded `SECRET_KEY`) |
@@ -69,6 +70,7 @@ Every feature and remediation in this repo is spec-driven. See `.claude/specs/`:
 - `app-foundation.md` / `app-foundation-plan.md` — the original vulnerable baseline.
 - `dark-mode-toggle.md` / `dark-mode-toggle-plan.md` — the theme toggle feature.
 - `bcrypt-password-hashing.md` / `bcrypt-password-hashing-plan.md` — the VULN-5 remediation.
+- `sql-injection-fix.md` / `sql-injection-fix-plan.md` — the VULN-1 remediation.
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.
 

@@ -6,9 +6,10 @@ This is an **intentionally vulnerable web application** built for security educa
 
 Students are meant to: read the source, exploit each flaw, trace it to its root cause, and only then patch it as a separate learning exercise.
 
-**Current state — two changes have been layered on top of the `v0.1.0` baseline, each via its own spec:**
+**Current state — three changes have been layered on top of the `v0.1.0` baseline, each via its own spec:**
 - **Dark mode toggle** (`.claude/specs/dark-mode-toggle.md`): a purely presentational light/dark theme switch on the login, signup, and dashboard pages. Client-side only — no backend route, session field, or DB column added, and none of the 8 vulnerabilities were touched.
-- **VULN-5 remediation** (`.claude/specs/bcrypt-password-hashing.md`): unsalted MD5 has been replaced with bcrypt (work factor ≥ 12). **This is the one vulnerability that has been intentionally fixed.** The other 7 remain unfixed and must still not be "fixed" without a new spec.
+- **VULN-5 remediation** (`.claude/specs/bcrypt-password-hashing.md`, `v0.1.1`): unsalted MD5 has been replaced with bcrypt (work factor ≥ 12).
+- **VULN-1 remediation** (`.claude/specs/sql-injection-fix.md` / `sql-injection-fix-plan.md`, `v0.1.2`): `signup()`'s `INSERT` and `login()`'s `SELECT` in `auth_service.py` now use parameterized queries (`?` placeholders with bound tuples) instead of string concatenation. **VULN-5 and VULN-1 are the two vulnerabilities that have been intentionally fixed.** The other 6 remain unfixed and must still not be "fixed" without a new spec.
 
 ## Development Commands
 
@@ -31,7 +32,7 @@ backend/app/
 ├── main.py                    # Entry point, session middleware, static mounts, DB init
 ├── core/security.py           # bcrypt password hashing, work factor 12 (VULN-5 — remediated)
 ├── db/session.py              # SQLite connection + init_db()
-├── services/auth_service.py   # signup()/login() business logic (VULN-1)
+├── services/auth_service.py   # signup()/login() business logic (VULN-1 — remediated)
 └── api/routes/auth.py         # HTTP route handlers (VULN-2, VULN-3, VULN-6)
 
 frontend/
@@ -44,7 +45,7 @@ frontend/
 
 | # | Vulnerability | Status | File | Mechanism |
 |---|---------------|--------|------|-----------|
-| 1 | SQL Injection | Unfixed (intentional) | `backend/app/services/auth_service.py` | String concatenation in both `signup()`'s INSERT and `login()`'s SELECT |
+| 1 | SQL Injection | **Remediated** | `backend/app/services/auth_service.py` | Parameterized (`?`-placeholder) queries in both `signup()`'s INSERT and `login()`'s SELECT — see `.claude/specs/sql-injection-fix.md` |
 | 2 | Stored XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` | Unescaped `{{username}}` substitution in `/welcome` |
 | 3 | Reflected XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` | Unescaped `q` param (and result rows, and exception text) in `/search` |
 | 4 | Session Hijacking | Unfixed (intentional) | `backend/app/main.py` | Hardcoded `SECRET_KEY = "super-secret-key-12345"` |
@@ -53,7 +54,9 @@ frontend/
 | 7 | No Rate Limiting | Unfixed (intentional) | *(absence)* | No throttling middleware registered anywhere in `main.py` |
 | 8 | CSRF | Unfixed (intentional) | *(absence)* | No CSRF token on any form, no validation on any POST route |
 
-**VULN-5 remediation details:** `auth_service.login()` can no longer match the password hash inside the SQL `WHERE` clause (bcrypt salts are random per hash), so it now fetches the user row by `username` only and calls `verify_password()` in Python. The `SELECT`/`INSERT` queries themselves are still string-concatenated — VULN-1 was **not** incidentally fixed by this change. `verify_password()` wraps `bcrypt.checkpw()` in `try/except` so a legacy MD5 value left over from before the fix returns `False` (a normal `401`) instead of crashing. Accounts created before this change cannot log in and must re-register.
+**VULN-5 remediation details:** `auth_service.login()` can no longer match the password hash inside the SQL `WHERE` clause (bcrypt salts are random per hash), so it now fetches the user row by `username` only and calls `verify_password()` in Python. `verify_password()` wraps `bcrypt.checkpw()` in `try/except` so a legacy MD5 value left over from before the fix returns `False` (a normal `401`) instead of crashing. Accounts created before this change cannot log in and must re-register.
+
+**VULN-1 remediation details:** `auth_service.signup()`'s `INSERT` and `login()`'s `SELECT` now use `?` placeholders with values passed as a bound parameter tuple to `conn.execute()`, instead of string concatenation. `login()`'s control flow is otherwise unchanged: it still fetches the row by `username` only and calls `verify_password()` in Python (per the VULN-5 remediation above). See `.claude/specs/sql-injection-fix.md`.
 
 ## Frontend-Backend Integration
 
@@ -64,7 +67,8 @@ frontend/
 
 ## Important Rules
 
-- Never parameterize the SQL in `auth_service.py` or `auth.py`. String concatenation is the point (VULN-1).
+- VULN-1 (SQL injection in `auth_service.py`) has already been remediated with parameterized queries per `.claude/specs/sql-injection-fix.md` — never reintroduce string-concatenated SQL in `signup()`/`login()`, and never change their query construction outside of what that spec describes without a new spec.
+- Never parameterize the SQL in `auth.py` (the `/search` route). String concatenation is the point (VULN-3).
 - VULN-5 (weak password storage) has already been remediated with bcrypt per `.claude/specs/bcrypt-password-hashing.md` — never reintroduce MD5 or any other unsalted/fast hash in `security.py`, and never change `hash_password()`/`verify_password()` outside of what that spec describes without a new spec.
 - Never HTML-escape the `{{username}}` substitution in `/welcome` (VULN-2), or the `q` reflection / result rows / exception text in `/search` (VULN-3).
 - Never source `SECRET_KEY` from an environment variable or a random generator (VULN-4) — it must stay the hardcoded literal.
@@ -80,5 +84,6 @@ frontend/
 3. `.claude/specs/app-foundation.md` / `app-foundation-plan.md` — Foundation implementation spec/plan (the `v0.1.0` baseline, all 8 vulnerabilities intentional)
 4. `.claude/specs/dark-mode-toggle.md` / `dark-mode-toggle-plan.md` — Light/dark theme toggle spec/plan
 5. `.claude/specs/bcrypt-password-hashing.md` / `bcrypt-password-hashing-plan.md` — VULN-5 remediation spec/plan
+6. `.claude/specs/sql-injection-fix.md` / `sql-injection-fix-plan.md` — VULN-1 remediation spec/plan
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.
