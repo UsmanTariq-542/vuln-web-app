@@ -1,6 +1,6 @@
 # Vulnerable Web App — Security Education Lab
 
-An intentionally vulnerable web application built for hands-on OWASP Top 10 security education. It ships with 8 deliberate vulnerabilities across SQL Injection, XSS (stored + reflected), session hijacking, weak password storage, an exposed database, missing rate limiting, and CSRF — so students can find, exploit, and then remediate each one as a separate, spec-driven exercise.
+An intentionally vulnerable web application built for hands-on OWASP Top 10 security education. It shipped with 8 deliberate vulnerabilities across SQL Injection, XSS (stored + reflected), session hijacking, weak password storage, an exposed database, missing rate limiting, and CSRF — so students can find, exploit, and then remediate each one as a separate, spec-driven exercise.
 
 **This application must never be deployed to production, exposed on the public internet, or connected to real user data. It is for isolated, localhost security education only.**
 
@@ -11,13 +11,19 @@ An intentionally vulnerable web application built for hands-on OWASP Top 10 secu
 - **Baseline (`v0.1.0`):** all 8 vulnerabilities present and intentional.
 - **Dark mode toggle:** a purely presentational light/dark theme switch has been added on top of the baseline (login, signup, dashboard). It does not touch any vulnerability.
 - **VULN-5 (Weak Password Storage) — remediated (`v0.1.1`):** unsalted MD5 has been replaced with bcrypt (work factor ≥ 12) as a spec-driven remediation exercise.
-- **VULN-1 (SQL Injection) — remediated (`v0.1.2`):** `signup()`'s `INSERT` and `login()`'s `SELECT` in `auth_service.py` now use parameterized queries (`?` placeholders + bound tuples) instead of string concatenation. **6 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
+- **VULN-1 (SQL Injection) — remediated (`v0.1.2`):** `signup()`'s `INSERT` and `login()`'s `SELECT` in `auth_service.py` now use parameterized queries (`?` placeholders + bound tuples) instead of string concatenation.
+- **VULN-4 (Session Hijacking) — remediated:** the hardcoded `SECRET_KEY = "super-secret-key-12345"` literal in `main.py` has been replaced with a value sourced from the `SECRET_KEY` environment variable (falling back to an ephemeral `secrets.token_hex(32)` key with a startup warning if unset), and the `SessionMiddleware` registration now sets `https_only=True` and `max_age=1800` (30-minute session expiry, down from Starlette's 14-day default). **5 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
 
 ## Getting Started
 
 ```bash
 # Install backend dependencies
 cd backend && uv sync
+
+# (Optional) set a stable session-signing key — see .env.example.
+# If unset, the app generates a random ephemeral key at startup and
+# warns on stderr; sessions are invalidated on every restart in that case.
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 
 # Run the application (from project root)
 uv run backend/app/main.py
@@ -27,13 +33,15 @@ uv run backend/app/main.py
 
 Accounts created before the bcrypt remediation (MD5-hashed passwords) can no longer log in — the app's SQLite file (`vulnerable_app.db`) should be deleted and recreated (happens automatically on next startup), or affected accounts re-registered via `/signup`.
 
+Session cookies are now issued with `Secure` and expire after 30 minutes (`max_age=1800`) as part of the VULN-4 remediation. Any session cookie signed before this fix (or forged with the old hardcoded key) is rejected as unauthenticated.
+
 ## Architecture
 
 Three-layer architecture: Presentation (HTML/CSS/JS) → Application (FastAPI) → Data (SQLite).
 
 ```
 backend/app/
-├── main.py                    # Entry point, session middleware, static mounts, DB init
+├── main.py                    # Entry point, session middleware (VULN-4 remediated), static mounts, DB init
 ├── core/security.py           # Password hashing: bcrypt, work factor 12 (VULN-5 remediated)
 ├── db/session.py              # SQLite connection + init_db()
 ├── services/auth_service.py   # signup()/login() business logic (VULN-1 remediated — parameterized queries)
@@ -57,7 +65,7 @@ frontend/
 | 1 | SQL Injection | **Remediated** (parameterized queries) | `backend/app/services/auth_service.py` |
 | 2 | Stored XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`/welcome`) |
 | 3 | Reflected XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`/search`) |
-| 4 | Session Hijacking | Unfixed (intentional) | `backend/app/main.py` (hardcoded `SECRET_KEY`) |
+| 4 | Session Hijacking | **Remediated** (env-sourced `SECRET_KEY`, `https_only`, `max_age=1800`) | `backend/app/main.py` |
 | 5 | Weak Password Storage | **Remediated** (bcrypt, work factor ≥ 12) | `backend/app/core/security.py` |
 | 6 | Exposed Database | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`GET /download/db`) |
 | 7 | No Rate Limiting | Unfixed (intentional) | *(absence of throttling middleware)* |
@@ -71,6 +79,7 @@ Every feature and remediation in this repo is spec-driven. See `.claude/specs/`:
 - `dark-mode-toggle.md` / `dark-mode-toggle-plan.md` — the theme toggle feature.
 - `bcrypt-password-hashing.md` / `bcrypt-password-hashing-plan.md` — the VULN-5 remediation.
 - `sql-injection-fix.md` / `sql-injection-fix-plan.md` — the VULN-1 remediation.
+- `session-hijacking-fix.md` / `session-hijacking-fix-plan.md` — the VULN-4 remediation.
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.
 
