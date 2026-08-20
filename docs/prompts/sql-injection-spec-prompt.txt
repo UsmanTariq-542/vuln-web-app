@@ -1,0 +1,147 @@
+You are working in the cloned `vuln-web-app` repository (the v0.1.1 release).
+
+READ first, to ground the spec in the real code and house style:
+
+* `.claude/specs/bcrypt-password-hashing.md` (study its section structure and style)
+* `backend/app/core/security.py`
+* `backend/app/services/auth_service.py` (focus on `login()` and any SQL query construction)
+* `backend/pyproject.toml`
+* `pyproject.toml` (root)
+
+If the READ phase reveals the vulnerable SQL construction is NOT in
+auth_service.login() (e.g. it's in a different function, a raw
+cursor.execute call, or another module entirely), do not force the
+spec to reference login(). Instead, base "Affected Files" and all
+subsequent sections on the actual location of the vulnerable query.
+
+
+The v0.1.1 release already contains the fixes for:
+
+* Vulnerability #5: weak/unsalted MD5 password hashing → bcrypt
+* Dark mode toggle functionality
+
+If `.claude/specs/sql-injection.md` already exists, do not overwrite
+it silently — stop and report that it already exists instead of
+writing the spec.
+
+
+Now CREATE EXACTLY ONE file and nothing else:
+
+`.claude/specs/sql-injection.md`
+
+Do NOT write any source code, plan file, or modify any existing file.
+
+The spec MUST follow the same documentation style as `.claude/specs/bcrypt-password-hashing.md` and contain these sections, in order:
+
+1. Title and one-paragraph Overview / Purpose
+
+2. Scope & Non-Goals
+
+   * State clearly that this task fixes **SQL Injection vulnerability #1 only**.
+   * State which of the other 6 lab vulnerabilities intentionally remain unfixed.
+   * Explicitly state that bcrypt/password hashing (#5) and dark mode are already fixed in v0.1.1 and are outside the scope of this task.
+
+3. Affected Files
+
+   * List the exact repository paths that must be changed.
+   * Identify any files that are inspected but should NOT be modified.
+
+4. Functional Requirements
+
+   * Use FR-XX identifiers.
+   * Replace the vulnerable SQL query construction with a safe parameterized/prepared-query approach.
+   * Preserve the existing authentication behavior for valid credentials.
+   * Ensure username input can no longer alter the SQL query structure.
+   * Ensure password authentication continues to use the existing bcrypt `verify_password()` flow introduced in v0.1.1.
+   * Do NOT revert or weaken the bcrypt password-hashing implementation.
+   * Do NOT fix unrelated vulnerabilities.
+
+5. Non-Functional Requirements
+
+   * Use NFR-XX identifiers.
+   * No raw user-controlled values may be interpolated or concatenated into SQL statements.
+   * Preserve existing API behavior, response format, and HTTP status semantics unless a change is required specifically for the SQLi fix.
+   * Keep the implementation consistent with the repository's existing database-access patterns and house style.
+   * Do not introduce unnecessary dependencies if the existing database library already supports parameterized queries.
+
+6. Success Paths
+
+   * Use SP-XX identifiers.
+   * Successful login with correct username/password.
+   * Failed login with an incorrect password.
+   * Failed login with a nonexistent username.
+   * Normal usernames containing characters that previously required escaping should be handled safely.
+
+7. Edge Cases
+
+   * Use EC-XX identifiers.
+   * SQL injection payloads in the username field must be treated as literal input rather than executable SQL.
+   * SQL injection payloads in the password field must also be treated as literal input.
+   * Inputs containing quotes, SQL comments, operators, and other SQL metacharacters must not alter query semantics.
+   * An injection attempt must result in normal authentication failure (for example HTTP 401), not a successful login, SQL error, or application crash.
+   * Confirm that the existing bcrypt password verification remains intact.
+   * Confirm that the fix does not accidentally reintroduce plaintext/MD5 password comparison.
+
+8. Acceptance Criteria
+
+   * Use AC-XX identifiers.
+   * The login query uses parameter binding/prepared statements rather than string interpolation or concatenation.
+   * A known SQL injection authentication-bypass payload can no longer bypass authentication.
+   * Legitimate users can still log in successfully.
+   * Invalid credentials still receive the expected authentication failure response.
+   * No SQL exception is exposed to the client as a result of malicious input.
+   * Vulnerability #1 is considered fixed.
+   * Vulnerabilities #2–#8 remain intentionally unchanged unless they were already fixed in v0.1.1.
+   * The bcrypt fix from v0.1.1 remains intact.
+
+9. Test Cases
+
+Include a table with exactly these columns:
+
+| ID | Scenario | Precondition | Expected Result |
+
+Include attack-focused test cases covering at minimum:
+
+* Normal successful login.
+* Wrong password.
+* Nonexistent username.
+* SQL injection attempt through username.
+* SQL injection attempt through password.
+* Username containing a single quote.
+* SQL comment/operator-based injection attempt.
+* Verification that a previously exploitable authentication-bypass payload now returns 401 without crashing.
+* Verification that bcrypt password verification still works after the SQLi fix.
+
+10. Verification Steps
+
+Provide exact commands and URLs needed to verify the fix against the local application.
+
+The verification must include:
+
+* Commands to start the backend using the repository's existing setup.
+* The exact login endpoint URL used by the application.
+* A normal valid-login request.
+* A normal invalid-login request.
+* SQL injection attack requests demonstrating that authentication cannot be bypassed.
+* Any relevant test command(s) already supported by the repository.
+
+Use the repository's actual routes, request format, and startup commands discovered during the READ phase. Do not invent endpoints or commands.
+
+Important implementation constraints:
+
+* The vulnerable SQL construction is the target of this task.
+* Fix SQL injection using parameterized queries/prepared statements.
+* Do NOT simply escape quotes or blacklist SQL keywords; the fix must prevent user input from becoming SQL syntax.
+* Do NOT change the database schema.
+* Do NOT change password hashing or authentication semantics beyond what is necessary to remove the SQL injection.
+* The login flow must continue to retrieve the user by username and then use the existing Python-side `verify_password(plain, hashed)` function for bcrypt verification.
+* Do NOT put the password hash comparison back inside SQL.
+* Do NOT modify unrelated vulnerabilities.
+* Do NOT create or modify tests unless the existing repository structure explicitly requires a test change for documenting the verification; this task is to create the specification only.
+* Do NOT modify `.claude/specs/app-foundation.md`.
+* Do NOT modify `backend/app/core/security.py` unless the READ phase reveals that the SQLi fix genuinely requires it; the bcrypt implementation is already fixed in v0.1.1.
+* The final state must represent v0.1.2 conceptually: v0.1.1's bcrypt and dark-mode fixes remain intact, and SQL injection vulnerability #1 is additionally fixed.
+
+Output only that one spec file.
+
+Confirm the path when done.
