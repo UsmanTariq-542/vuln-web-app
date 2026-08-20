@@ -3,11 +3,14 @@ from pathlib import Path
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.session import DB_PATH, get_db
 from app.services import auth_service
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 # backend/app/api/routes/auth.py -> routes -> api -> app -> backend -> <project root>
 TEMPLATES_DIR = Path(__file__).resolve().parents[4] / "frontend" / "templates"
@@ -28,7 +31,9 @@ def signup_page():
 
 
 @router.post("/signup")
+@limiter.limit("5/minute")
 def signup_post(
+    request: Request,
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
@@ -42,6 +47,7 @@ def login_page():
 
 
 @router.post("/login")
+@limiter.limit("5/minute")
 def login_post(
     request: Request,
     username: str = Form(...),

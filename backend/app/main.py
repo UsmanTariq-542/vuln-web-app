@@ -14,6 +14,9 @@ import secrets
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes.auth import router as auth_router
@@ -42,8 +45,14 @@ app.add_middleware(
     max_age=1800,
 )
 
-# VULN-7: No Rate Limiting (intentional, by omission). No throttling
-# middleware is registered anywhere in this file -- do not add one.
+# VULN-7 remediated: an in-memory, per-client-IP limiter is attached to
+# app.state so route-level @limiter.limit(...) decorators (see auth.py's
+# login_post()/signup_post()) can resolve it. See
+# .claude/specs/rate-limiting-fix.md for scope and limitations (single
+# process, in-memory counters -- not a distributed rate limiter).
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(auth_router)
 
