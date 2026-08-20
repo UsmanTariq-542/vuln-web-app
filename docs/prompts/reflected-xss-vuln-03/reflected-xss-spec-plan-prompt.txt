@@ -1,0 +1,12 @@
+Read .claude/specs/reflected-xss-fix.md (and re-read docs/TDD.md, backend/app/api/routes/auth.py,
+.claude/specs/sql-injection-fix.md for the parameterization pattern already used elsewhere).
+
+Based on the spec, write a detailed, phase-by-phase implementation plan and save it ONLY as
+.claude/specs/reflected-xss-fix-plan.md.
+
+Do NOT write or modify any source code in this step — produce the plan document only.
+The plan must list, per phase: the exact query change (? placeholders + bound tuple, matching
+auth_service.py's style), the exact escaping added to q and each result row's username/email
+(html.escape()), the exact replacement error-handling body for the except block, and the
+verification steps from the spec. Do NOT touch auth_service.py, security.py, main.py, or any
+other route. Preserve all other intentional vulnerabilities.

@@ -1,0 +1,8 @@
+Read .claude/specs/reflected-xss-fix-plan.md and implement it phase by phase, following it exactly.
+Only touch backend/app/api/routes/auth.py (search_user() only — do not touch other functions in
+this file). Do NOT change auth_service.py, security.py, main.py, or any other vulnerability.
+
+After implementing, remind me to restart the server and test: (a) a <script> payload in q renders
+escaped, (b) a ' OR '1'='1 payload no longer dumps all users, (c) the error path (if triggerable)
+returns a generic message with no exception text; then walk through the plan's verification steps
+and report the result.

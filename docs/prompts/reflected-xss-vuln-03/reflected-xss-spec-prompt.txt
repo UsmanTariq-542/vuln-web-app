@@ -1,0 +1,39 @@
+You are working in the 'vuln-web-app' repository.
+
+READ first, to ground the spec in the real code and house style:
+- .claude/specs/app-foundation.md (study its section structure and style)
+- .claude/specs/sql-injection-fix.md (study how VULN-1's parameterized-query fix was scoped —
+  this vulnerability needs the same SQL treatment, in a different file)
+- backend/app/api/routes/auth.py (focus on search_user())
+- CLAUDE.md (Vulnerability Map + Important Rules, for exact current status of VULN-3)
+
+Then CREATE EXACTLY ONE file and nothing else: .claude/specs/reflected-xss-fix.md.
+Do NOT write any source code, plan file, or modify any existing file.
+
+The spec MUST follow the same documentation style as .claude/specs/app-foundation.md and
+contain these sections, in order:
+- Title and one-paragraph Overview / Purpose
+- Scope & Non-Goals (state this closes VULN-3 ONLY, covering all three issues bundled into that
+  one route per the code's own comment: reflected XSS, the string-concatenated SQL query, and
+  raw exception-message leakage. VULN-2, VULN-6, VULN-7, VULN-8 remain intentionally unfixed.
+  Explicitly note this does NOT touch auth_service.py or the VULN-1 fix already applied there —
+  this is a separate query in a separate file)
+- Affected Files (exact repository paths)
+- Functional Requirements (FR-XX), Non-Functional Requirements (NFR-XX)
+- Success Paths (SP-XX), Edge Cases (EC-XX), Acceptance Criteria (AC-XX)
+- Test Cases (table: ID | Scenario | Precondition | Expected Result)
+- Verification Steps (exact commands and URLs)
+
+Fix content:
+In search_user() (backend/app/api/routes/auth.py): (1) parameterize the query using ? placeholders
+and a bound tuple, same pattern as auth_service.py's VULN-1 fix, replacing the LIKE '%...%' string
+concatenation; (2) HTML-escape q and each row's username/email before they're embedded into the
+response HTML; (3) replace the except Exception as e: HTMLResponse(f"<p>Search error: {e}</p>")
+body with a generic, non-leaking error message (still 500 status, no exception detail). Keep the
+route's overall shape (GET /search?q=..., returns an HTML fragment) unchanged. Include attack/edge
+test cases: q=<script>alert(1)</script> renders escaped, not executing; q=' OR '1'='1 no longer
+returns all users or errors; a search matching zero results still renders correctly; a search
+triggering a DB error (if reachable) returns a generic message with no exception text or stack
+detail in the response body.
+
+Output only that one spec file. Confirm the path when done.

@@ -1,0 +1,15 @@
+Read .claude/specs/rate-limiting-fix.md (and re-read docs/TDD.md, backend/app/main.py,
+backend/app/api/routes/auth.py, backend/pyproject.toml, pyproject.toml).
+
+Based on the spec, write a detailed, phase-by-phase implementation plan and save it ONLY as
+.claude/specs/rate-limiting-fix-plan.md.
+
+Do NOT write or modify any source code in this step — produce the plan document only.
+The plan must list, per phase: the slowapi dependency additions to both pyproject.toml files, the
+exact main.py changes (Limiter instantiation, app.state.limiter, exception handler registration,
+and where in the middleware/router setup order this goes relative to the existing SessionMiddleware
+and auth_router), the exact decorator additions to login_post()/signup_post() in auth.py (including
+the Request parameter each needs if not already present, since slowapi requires it), the exact
+rate limit value and window, and the verification steps from the spec. Do NOT change SQL, password
+hashing, session/cookie config beyond what's needed to add the limiter, or any other route.
+Preserve all other intentional vulnerabilities.

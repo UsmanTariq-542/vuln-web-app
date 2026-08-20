@@ -51,9 +51,14 @@ def login_post(
 
 
 @router.get("/download/db")
-def download_db():
-    # VULN-6: Exposed Database (intentional). No auth check whatsoever --
-    # anyone who knows this URL can download the entire SQLite file.
+def download_db(request: Request):
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/login", status_code=302)
+
+    # VULN-6 remediated: session-presence check gates access. Any
+    # authenticated user may still download the file -- this app has no
+    # role/admin system, so this is "authenticated only," not "admin only".
+    # See .claude/specs/exposed-database-fix.md.
     return FileResponse(DB_PATH, filename="vulnerable_app.db")
 
 

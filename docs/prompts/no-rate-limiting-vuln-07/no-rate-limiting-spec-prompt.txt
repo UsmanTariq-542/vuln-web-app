@@ -1,0 +1,38 @@
+You are working in the 'vuln-web-app' repository.
+
+READ first, to ground the spec in the real code and house style:
+- .claude/specs/app-foundation.md (study its section structure and style)
+- backend/app/main.py (app setup, middleware registration order)
+- backend/app/api/routes/auth.py (focus on login_post() and signup_post())
+- backend/pyproject.toml and pyproject.toml (root) — for dependency-addition format
+- CLAUDE.md (Vulnerability Map + Important Rules, for exact current status of VULN-7)
+
+Then CREATE EXACTLY ONE file and nothing else: .claude/specs/rate-limiting-fix.md.
+Do NOT write any source code, plan file, or modify any existing file.
+
+The spec MUST follow the same documentation style as .claude/specs/app-foundation.md and
+contain these sections, in order:
+- Title and one-paragraph Overview / Purpose
+- Scope & Non-Goals (state this closes VULN-7 ONLY; VULN-2, VULN-3, VULN-6, VULN-8 remain
+  intentionally unfixed. State that this is an in-memory, single-process limiter suitable for
+  a lab/demo — not a production-grade distributed rate limiter — and call that out as a
+  known limitation rather than silently overselling it)
+- Affected Files (exact repository paths, including both pyproject.toml files)
+- Functional Requirements (FR-XX), Non-Functional Requirements (NFR-XX)
+- Success Paths (SP-XX), Edge Cases (EC-XX), Acceptance Criteria (AC-XX)
+- Test Cases (table: ID | Scenario | Precondition | Expected Result)
+- Verification Steps (exact commands and URLs)
+
+Fix content:
+Add the `slowapi` library (in-memory, per-IP token-bucket limiter built on `limits`) as a
+dependency in both backend/pyproject.toml and the root pyproject.toml. In main.py, instantiate a
+Limiter keyed by remote address, attach it to `app.state.limiter`, and register slowapi's
+`_rate_limit_exceeded_handler` for `RateLimitExceeded` so a throttled request returns 429 with a
+JSON body rather than an unhandled exception. Apply a `@limiter.limit(...)` decorator to
+login_post() and signup_post() in auth.py (suggest 5/minute each — spec should state the exact
+limit and rationale). Do not add limiting to /welcome, /search, /download/db, or /logout — scope
+is auth endpoints only, since those are the brute-force/enumeration surface. Include test cases:
+the 6th /login attempt within a minute from the same client returns 429; a request after the
+window rolls over succeeds again; /welcome and /search remain unthrottled.
+
+Output only that one spec file. Confirm the path when done.

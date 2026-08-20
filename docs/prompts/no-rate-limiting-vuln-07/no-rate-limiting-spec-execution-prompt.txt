@@ -1,0 +1,8 @@
+Read .claude/specs/rate-limiting-fix-plan.md and implement it phase by phase, following it exactly.
+Only touch the files the plan names (backend/app/main.py, backend/app/api/routes/auth.py,
+backend/pyproject.toml, root pyproject.toml). Do NOT change any other vulnerability.
+
+After implementing, remind me to run uv sync, restart the server, and test: (a) 6 rapid POSTs to
+/login from the same client — the 6th returns 429, (b) after waiting out the window, a request
+succeeds again, (c) /welcome and /search are still unthrottled; then walk through the plan's
+verification steps and report the result.
