@@ -10,7 +10,8 @@ Students are meant to: read the source, exploit each flaw, trace it to its root 
 - **Dark mode toggle** (`.claude/specs/dark-mode-toggle.md`): a purely presentational light/dark theme switch on the login, signup, and dashboard pages. Client-side only — no backend route, session field, or DB column added, and none of the 8 vulnerabilities were touched.
 - **VULN-5 remediation** (`.claude/specs/bcrypt-password-hashing.md`, `v0.1.1`): unsalted MD5 has been replaced with bcrypt (work factor ≥ 12).
 - **VULN-1 remediation** (`.claude/specs/sql-injection-fix.md` / `sql-injection-fix-plan.md`, `v0.1.2`): `signup()`'s `INSERT` and `login()`'s `SELECT` in `auth_service.py` now use parameterized queries (`?` placeholders with bound tuples) instead of string concatenation.
-- **VULN-4 remediation** (`.claude/specs/session-hijacking-fix.md` / `session-hijacking-fix-plan.md`): the hardcoded `SECRET_KEY` literal in `main.py` has been replaced with a value sourced from the `SECRET_KEY` environment variable (falling back to an ephemeral `secrets.token_hex(32)` key with a startup warning if unset), and the `SessionMiddleware` registration now sets `https_only=True` and `max_age=1800`. **VULN-5, VULN-1, and VULN-4 are the three vulnerabilities that have been intentionally fixed.** The other 5 remain unfixed and must still not be "fixed" without a new spec.
+- **VULN-4 remediation** (`.claude/specs/session-hijacking-fix.md` / `session-hijacking-fix-plan.md`): the hardcoded `SECRET_KEY` literal in `main.py` has been replaced with a value sourced from the `SECRET_KEY` environment variable (falling back to an ephemeral `secrets.token_hex(32)` key with a startup warning if unset), and the `SessionMiddleware` registration now sets `https_only=True` and `max_age=1800`.
+- **VULN-2 remediation** (`.claude/specs/stored-xss-fix.md` / `stored-xss-fix-plan.md`, `v0.1.4`): `welcome_page()` in `auth.py` now passes `request.session["username"]` through Python's standard-library `html.escape()` before substituting it into `dashboard.html`'s `{{username}}` placeholder, so a stored `<script>`/`<img onerror>` payload renders as inert escaped text instead of executing. **VULN-5, VULN-1, VULN-4, and VULN-2 are the four vulnerabilities that have been intentionally fixed.** The other 4 (VULN-3, VULN-6, VULN-7, VULN-8) remain unfixed and must still not be "fixed" without a new spec.
 
 ## Development Commands
 
@@ -34,7 +35,7 @@ backend/app/
 ├── core/security.py           # bcrypt password hashing, work factor 12 (VULN-5 — remediated)
 ├── db/session.py              # SQLite connection + init_db()
 ├── services/auth_service.py   # signup()/login() business logic (VULN-1 — remediated)
-└── api/routes/auth.py         # HTTP route handlers (VULN-2, VULN-3, VULN-6)
+└── api/routes/auth.py         # HTTP route handlers (VULN-2 — remediated; VULN-3, VULN-6 unfixed)
 
 frontend/
 ├── templates/                 # login.html, signup.html, dashboard.html — read from disk per request, no caching
@@ -47,7 +48,7 @@ frontend/
 | # | Vulnerability | Status | File | Mechanism |
 |---|---------------|--------|------|-----------|
 | 1 | SQL Injection | **Remediated** | `backend/app/services/auth_service.py` | Parameterized (`?`-placeholder) queries in both `signup()`'s INSERT and `login()`'s SELECT — see `.claude/specs/sql-injection-fix.md` |
-| 2 | Stored XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` | Unescaped `{{username}}` substitution in `/welcome` |
+| 2 | Stored XSS | **Remediated** | `backend/app/api/routes/auth.py` | `html.escape()` applied to the session username before `{{username}}` substitution in `/welcome` — see `.claude/specs/stored-xss-fix.md` |
 | 3 | Reflected XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` | Unescaped `q` param (and result rows, and exception text) in `/search` |
 | 4 | Session Hijacking | **Remediated** | `backend/app/main.py` | `SECRET_KEY` sourced from the `SECRET_KEY` env var (ephemeral random fallback if unset); `SessionMiddleware` hardened with `https_only=True`, `max_age=1800` — see `.claude/specs/session-hijacking-fix.md` |
 | 5 | Weak Password Storage | **Remediated** | `backend/app/core/security.py` | `bcrypt.hashpw()`/`bcrypt.checkpw()`, work factor 12 — see `.claude/specs/bcrypt-password-hashing.md` |
@@ -61,11 +62,13 @@ frontend/
 
 **VULN-4 remediation details:** `main.py` no longer defines `SECRET_KEY` as a hardcoded literal. It is read via `os.environ.get("SECRET_KEY")`; if unset, it falls back to a randomly generated ephemeral key (`secrets.token_hex(32)`) and prints a startup warning to stderr — the app still runs out of the box, but every session is invalidated on restart in that fallback mode. The `app.add_middleware(SessionMiddleware, ...)` call also now sets `https_only=True` (cookie marked `Secure`) and `max_age=1800` (30-minute expiry, replacing Starlette's 14-day default). No session-store architecture change: sessions remain stateless, `itsdangerous`-signed cookies — only the signing key and cookie parameters changed. `auth_service.login()`'s session writes and `auth.py`'s `welcome_page()`/`logout()` session reads/clears are untouched. See `.claude/specs/session-hijacking-fix.md`.
 
+**VULN-2 remediation details:** `auth.py`'s `welcome_page()` now imports the standard-library `html` module and calls `html.escape()` on `request.session["username"]` before substituting it into `dashboard.html`'s `{{username}}` placeholder via the existing `str.replace()` mechanism. `dashboard.html` itself, the per-request disk read (no caching), and the plain string-substitution mechanism are all unchanged — only the substituted value is escaped. A username stored as `<script>alert(1)</script>` now renders as literal escaped text in the browser instead of executing. See `.claude/specs/stored-xss-fix.md`.
+
 ## Frontend-Backend Integration
 
 - **Login**: `fetch()` POST → JSON response (`{"success": bool, "redirect"|"error": ...}`) → client-side redirect or inline error, no page reload.
 - **Signup**: standard `<form>` POST → server-side redirect to `/login` on success, or an inline failure page on a duplicate username.
-- **Dashboard**: server-side `str.replace('{{username}}', ...)` on a template string read fresh from disk on every request — no template engine, no escaping.
+- **Dashboard**: server-side `str.replace('{{username}}', ...)` on a template string read fresh from disk on every request — no template engine; the substituted username is now HTML-escaped via `html.escape()` (VULN-2 remediation).
 - **Theme toggle**: client-only, present on login, signup, and dashboard. A pre-render inline script in `<head>` reads `localStorage['theme']` (falling back to `prefers-color-scheme`) and sets `data-theme` on `<html>` before paint, to avoid a flash of the wrong theme. A header button toggles `data-theme` between `"light"`/`"dark"` and writes the choice back to `localStorage`. All theming is CSS custom-property overrides under `[data-theme="dark"]` in `styles.css` — no backend route, session field, or DB column is involved.
 
 ## Important Rules
@@ -73,7 +76,8 @@ frontend/
 - VULN-1 (SQL injection in `auth_service.py`) has already been remediated with parameterized queries per `.claude/specs/sql-injection-fix.md` — never reintroduce string-concatenated SQL in `signup()`/`login()`, and never change their query construction outside of what that spec describes without a new spec.
 - Never parameterize the SQL in `auth.py` (the `/search` route). String concatenation is the point (VULN-3).
 - VULN-5 (weak password storage) has already been remediated with bcrypt per `.claude/specs/bcrypt-password-hashing.md` — never reintroduce MD5 or any other unsalted/fast hash in `security.py`, and never change `hash_password()`/`verify_password()` outside of what that spec describes without a new spec.
-- Never HTML-escape the `{{username}}` substitution in `/welcome` (VULN-2), or the `q` reflection / result rows / exception text in `/search` (VULN-3).
+- VULN-2 (stored XSS in `/welcome`) has already been remediated with `html.escape()` per `.claude/specs/stored-xss-fix.md` — never reintroduce unescaped substitution of the session username into `{{username}}`, and never change this outside of what that spec describes without a new spec.
+- Never escape the `q` reflection / result rows / exception text in `/search` (VULN-3) — string concatenation and unescaped output there are the point.
 - VULN-4 (session hijacking) has already been remediated per `.claude/specs/session-hijacking-fix.md` — `SECRET_KEY` is sourced from the `SECRET_KEY` environment variable (with an ephemeral random fallback), and `SessionMiddleware` sets `https_only=True`/`max_age=1800`; never reintroduce the hardcoded `"super-secret-key-12345"` literal, and never change this configuration outside of what that spec describes without a new spec.
 - Never add authentication to `/download/db` (VULN-6).
 - Never add rate-limiting middleware (VULN-7) or CSRF tokens/middleware (VULN-8).
@@ -89,5 +93,6 @@ frontend/
 5. `.claude/specs/bcrypt-password-hashing.md` / `bcrypt-password-hashing-plan.md` — VULN-5 remediation spec/plan
 6. `.claude/specs/sql-injection-fix.md` / `sql-injection-fix-plan.md` — VULN-1 remediation spec/plan
 7. `.claude/specs/session-hijacking-fix.md` / `session-hijacking-fix-plan.md` — VULN-4 remediation spec/plan
+8. `.claude/specs/stored-xss-fix.md` / `stored-xss-fix-plan.md` — VULN-2 remediation spec/plan
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.

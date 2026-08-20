@@ -12,7 +12,8 @@ An intentionally vulnerable web application built for hands-on OWASP Top 10 secu
 - **Dark mode toggle:** a purely presentational light/dark theme switch has been added on top of the baseline (login, signup, dashboard). It does not touch any vulnerability.
 - **VULN-5 (Weak Password Storage) — remediated (`v0.1.1`):** unsalted MD5 has been replaced with bcrypt (work factor ≥ 12) as a spec-driven remediation exercise.
 - **VULN-1 (SQL Injection) — remediated (`v0.1.2`):** `signup()`'s `INSERT` and `login()`'s `SELECT` in `auth_service.py` now use parameterized queries (`?` placeholders + bound tuples) instead of string concatenation.
-- **VULN-4 (Session Hijacking) — remediated:** the hardcoded `SECRET_KEY = "super-secret-key-12345"` literal in `main.py` has been replaced with a value sourced from the `SECRET_KEY` environment variable (falling back to an ephemeral `secrets.token_hex(32)` key with a startup warning if unset), and the `SessionMiddleware` registration now sets `https_only=True` and `max_age=1800` (30-minute session expiry, down from Starlette's 14-day default). **5 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
+- **VULN-4 (Session Hijacking) — remediated:** the hardcoded `SECRET_KEY = "super-secret-key-12345"` literal in `main.py` has been replaced with a value sourced from the `SECRET_KEY` environment variable (falling back to an ephemeral `secrets.token_hex(32)` key with a startup warning if unset), and the `SessionMiddleware` registration now sets `https_only=True` and `max_age=1800` (30-minute session expiry, down from Starlette's 14-day default).
+- **VULN-2 (Stored XSS) — remediated (`v0.1.4`):** `welcome_page()` in `auth.py` now passes the session's `username` through Python's standard-library `html.escape()` before substituting it into `dashboard.html`'s `{{username}}` placeholder, so a username stored as `<script>alert(1)</script>` (or any other markup/attribute-breakout payload) renders as inert, literal escaped text instead of executing. **4 of the 8 original vulnerabilities remain intentionally unfixed** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
 
 ## Getting Started
 
@@ -45,7 +46,7 @@ backend/app/
 ├── core/security.py           # Password hashing: bcrypt, work factor 12 (VULN-5 remediated)
 ├── db/session.py              # SQLite connection + init_db()
 ├── services/auth_service.py   # signup()/login() business logic (VULN-1 remediated — parameterized queries)
-└── api/routes/auth.py         # HTTP route handlers (VULN-2, VULN-3, VULN-6 — unremediated)
+└── api/routes/auth.py         # HTTP route handlers (VULN-2 remediated; VULN-3, VULN-6 — unremediated)
 
 frontend/
 ├── templates/                 # login.html, signup.html, dashboard.html — read from disk per request, no caching
@@ -63,7 +64,7 @@ frontend/
 | # | Vulnerability | Status | Location |
 |---|---|---|---|
 | 1 | SQL Injection | **Remediated** (parameterized queries) | `backend/app/services/auth_service.py` |
-| 2 | Stored XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`/welcome`) |
+| 2 | Stored XSS | **Remediated** (`html.escape()` before `{{username}}` substitution, `v0.1.4`) | `backend/app/api/routes/auth.py` (`/welcome`) |
 | 3 | Reflected XSS | Unfixed (intentional) | `backend/app/api/routes/auth.py` (`/search`) |
 | 4 | Session Hijacking | **Remediated** (env-sourced `SECRET_KEY`, `https_only`, `max_age=1800`) | `backend/app/main.py` |
 | 5 | Weak Password Storage | **Remediated** (bcrypt, work factor ≥ 12) | `backend/app/core/security.py` |
@@ -80,6 +81,7 @@ Every feature and remediation in this repo is spec-driven. See `.claude/specs/`:
 - `bcrypt-password-hashing.md` / `bcrypt-password-hashing-plan.md` — the VULN-5 remediation.
 - `sql-injection-fix.md` / `sql-injection-fix-plan.md` — the VULN-1 remediation.
 - `session-hijacking-fix.md` / `session-hijacking-fix-plan.md` — the VULN-4 remediation.
+- `stored-xss-fix.md` / `stored-xss-fix-plan.md` — the VULN-2 remediation.
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.
 
