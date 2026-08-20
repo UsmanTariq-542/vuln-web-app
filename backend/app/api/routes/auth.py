@@ -64,25 +64,27 @@ def download_db(request: Request):
 
 @router.get("/search")
 def search_user(q: str = ""):
-    # VULN-3: Reflected XSS (intentional), plus SQL Injection via string
-    # concatenation, plus raw exception-message leakage. None of the three
-    # are accidental -- do not parameterize the query or escape the output.
+    # VULN-3 remediated: query is parameterized (?-placeholder binding, same
+    # pattern as auth_service.py's VULN-1 fix), q and result-row fields are
+    # HTML-escaped before embedding, and the exception handler no longer
+    # leaks exception detail. See .claude/specs/reflected-xss-fix.md.
     try:
         conn = get_db()
-        query = (
-            "SELECT username, email FROM users WHERE username LIKE '%" + q
-            + "%' OR email LIKE '%" + q + "%'"
-        )
-        rows = conn.execute(query).fetchall()
+        like_pattern = f"%{q}%"
+        rows = conn.execute(
+            "SELECT username, email FROM users WHERE username LIKE ? OR email LIKE ?",
+            (like_pattern, like_pattern),
+        ).fetchall()
         conn.close()
 
         results_html = "".join(
-            f"<li>{row['username']} ({row['email']})</li>" for row in rows
+            f"<li>{html.escape(row['username'])} ({html.escape(row['email'])})</li>"
+            for row in rows
         )
-        body = f"<h2>Search results for: {q}</h2><ul>{results_html}</ul>"
+        body = f"<h2>Search results for: {html.escape(q)}</h2><ul>{results_html}</ul>"
         return HTMLResponse(body)
-    except Exception as e:
-        return HTMLResponse(f"<p>Search error: {e}</p>", status_code=500)
+    except Exception:
+        return HTMLResponse("<p>Search error. Please try again.</p>", status_code=500)
 
 
 @router.get("/welcome")

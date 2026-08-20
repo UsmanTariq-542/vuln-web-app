@@ -1,0 +1,15 @@
+Read .claude/specs/csrf-protection-fix.md (and re-read docs/TDD.md, backend/app/api/routes/auth.py,
+frontend/templates/login.html, frontend/templates/signup.html, backend/app/main.py).
+
+Based on the spec, write a detailed, phase-by-phase implementation plan and save it ONLY as
+.claude/specs/csrf-protection-fix-plan.md.
+
+Do NOT write or modify any source code in this step — produce the plan document only.
+The plan must list, per phase: the new backend/app/core/csrf.py module (token generation +
+constant-time comparison helper), the exact changes to signup_page()/login_page() (token
+generation + injection into the template), the exact changes to signup_post()/login_post()
+(token validation before calling auth_service, and the exact 403 response shape for each), the
+exact markup/JS changes needed in login.html and signup.html to carry the token, and the
+verification steps from the spec. Do NOT change SQL, password hashing, session cookie
+configuration (https_only/max_age), or any other route. Preserve all other intentional
+vulnerabilities.

@@ -1,0 +1,44 @@
+You are working in the 'vuln-web-app' repository.
+
+READ first, to ground the spec in the real code and house style:
+- .claude/specs/app-foundation.md (study its section structure and style)
+- backend/app/api/routes/auth.py (signup_page/signup_post, login_page/login_post — note login is
+  fetch()-based JSON, signup is a standard <form> POST — they need different token-delivery
+  mechanisms)
+- frontend/templates/login.html and frontend/templates/signup.html (current form/fetch markup)
+- backend/app/main.py (SessionMiddleware setup — the CSRF token will live in the session)
+- CLAUDE.md (Vulnerability Map + Important Rules, for exact current status of VULN-8)
+
+Then CREATE EXACTLY ONE file and nothing else: .claude/specs/csrf-protection-fix.md.
+Do NOT write any source code, plan file, or modify any existing file.
+
+The spec MUST follow the same documentation style as .claude/specs/app-foundation.md and
+contain these sections, in order:
+- Title and one-paragraph Overview / Purpose
+- Scope & Non-Goals (state this closes VULN-8 ONLY; VULN-2, VULN-3, VULN-6, VULN-7 remain
+  intentionally unfixed. State that /logout is a GET request and out of scope for token
+  validation — note that making logout a state-changing GET is itself a separate, pre-existing
+  design choice this spec does not change)
+- Affected Files (exact repository paths — expect a new backend/app/core/csrf.py, plus
+  auth.py, login.html, signup.html)
+- Functional Requirements (FR-XX), Non-Functional Requirements (NFR-XX)
+- Success Paths (SP-XX), Edge Cases (EC-XX), Acceptance Criteria (AC-XX)
+- Test Cases (table: ID | Scenario | Precondition | Expected Result)
+- Verification Steps (exact commands and URLs)
+
+Fix content:
+Add a session-stored CSRF token pattern (no new dependency — use Python's `secrets.token_hex`
+and the existing itsdangerous-backed session). On GET /login and GET /signup, generate a token if
+one isn't already in the session, store it in request.session["csrf_token"], and inject it into
+the rendered HTML: as a hidden <input name="csrf_token"> for signup.html's form, and as a value the
+inline JS in login.html can read (e.g. a data attribute on a container element) to include in the
+fetch() body/JSON for login. On POST /login and POST /signup, require a csrf_token field/value that
+matches request.session["csrf_token"] via secrets.compare_digest; on mismatch or absence, return
+403 (JSON error for login's fetch() flow, an inline HTML error page for signup's form flow,
+matching each route's existing error-response style) and do not proceed with authentication.
+Include test cases: a POST with a valid token succeeds as before; a POST with a missing token is
+rejected 403; a POST with a stale/mismatched token (e.g. reused from a different session) is
+rejected 403; a normal browser flow (GET page, then POST from that same page) still works
+end-to-end for both login and signup.
+
+Output only that one spec file. Confirm the path when done.

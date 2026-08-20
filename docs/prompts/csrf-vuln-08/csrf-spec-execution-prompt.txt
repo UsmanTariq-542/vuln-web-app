@@ -1,0 +1,9 @@
+Read .claude/specs/csrf-protection-fix-plan.md and implement it phase by phase, following it
+exactly. Only touch the files the plan names. Do NOT change SQL, password hashing, session/cookie
+config, or any other vulnerability.
+
+After implementing, remind me to restart the server and test: (a) a normal browser login and
+signup flow still succeeds end-to-end, (b) a POST /login or POST /signup with the csrf_token
+field stripped out is rejected with 403, (c) a POST using a token copied from a different/earlier
+session is rejected with 403; then walk through the plan's verification steps and report the
+result.
