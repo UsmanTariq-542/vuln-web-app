@@ -6,10 +6,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
 
-# VULN-1: SQL Injection (intentional).
-# Every query below is built with plain string concatenation of user-controlled
-# input -- no "?" placeholders, no parameter tuples, no ORM. Do not parameterize
-# these; that is a later remediation exercise, not part of this baseline.
+# VULN-1 remediated: signup()/login() now use parameterized queries ("?"
+# placeholders + bound tuples) instead of string concatenation.
+# See .claude/specs/sql-injection-fix.md.
 
 
 def signup(username: str, email: str, password: str):
@@ -20,11 +19,8 @@ def signup(username: str, email: str, password: str):
 
     conn = get_db()
     try:
-        query = (
-            "INSERT INTO users (username, email, password) VALUES ('"
-            + username + "', '" + email + "', '" + hashed + "')"
-        )
-        conn.execute(query)
+        query = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)"
+        conn.execute(query, (username, email, hashed))
         conn.commit()
     except sqlite3.IntegrityError:
         return HTMLResponse("Username already exists", status_code=400)
@@ -39,8 +35,8 @@ def login(request: Request, username: str, password: str):
         return JSONResponse({"success": False, "error": "Username and password are required."}, status_code=401)
 
     conn = get_db()
-    query = "SELECT * FROM users WHERE username = '" + username + "'"
-    row = conn.execute(query).fetchone()
+    query = "SELECT * FROM users WHERE username = ?"
+    row = conn.execute(query, (username,)).fetchone()
     conn.close()
 
     if row is None or not verify_password(password, row["password"]):
