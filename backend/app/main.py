@@ -10,6 +10,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 import os
+import secrets
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -22,10 +23,24 @@ PROJECT_ROOT = BACKEND_DIR.parent
 
 app = FastAPI()
 
-# VULN-4: Session Hijacking (intentional). Hardcoded, guessable secret key --
-# do not source this from an environment variable or a random generator.
-SECRET_KEY = "super-secret-key-12345"
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+# VULN-4 remediated: secret key is sourced from the SECRET_KEY environment
+# variable, with cookies scoped to https_only and a 30-minute max_age.
+# See .claude/specs/session-hijacking-fix.md.
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    SECRET_KEY = secrets.token_hex(32)
+    print(
+        "WARNING: SECRET_KEY environment variable is not set. "
+        "Using a randomly generated ephemeral key for this run only; "
+        "all sessions will be invalidated on restart.",
+        file=sys.stderr,
+    )
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    https_only=True,
+    max_age=1800,
+)
 
 # VULN-7: No Rate Limiting (intentional, by omission). No throttling
 # middleware is registered anywhere in this file -- do not add one.
