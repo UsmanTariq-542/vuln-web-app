@@ -2,10 +2,11 @@ import html
 from pathlib import Path
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.core.csrf import generate_csrf_token, verify_csrf_token
 from app.db.session import DB_PATH, get_db
 from app.services import auth_service
 
@@ -26,8 +27,14 @@ def index():
 
 
 @router.get("/signup")
-def signup_page():
-    return HTMLResponse(_read_template("signup.html"))
+def signup_page(request: Request):
+    if "csrf_token" not in request.session:
+        request.session["csrf_token"] = generate_csrf_token()
+    csrf_token = request.session["csrf_token"]
+
+    page_html = _read_template("signup.html")
+    page_html = page_html.replace("{{csrf_token}}", html.escape(csrf_token))
+    return HTMLResponse(page_html)
 
 
 @router.post("/signup")
@@ -37,13 +44,22 @@ def signup_post(
     username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
+    csrf_token: str = Form(...),
 ):
+    if not verify_csrf_token(request.session.get("csrf_token"), csrf_token):
+        return HTMLResponse("Invalid or missing CSRF token.", status_code=403)
     return auth_service.signup(username, email, password)
 
 
 @router.get("/login")
-def login_page():
-    return HTMLResponse(_read_template("login.html"))
+def login_page(request: Request):
+    if "csrf_token" not in request.session:
+        request.session["csrf_token"] = generate_csrf_token()
+    csrf_token = request.session["csrf_token"]
+
+    page_html = _read_template("login.html")
+    page_html = page_html.replace("{{csrf_token}}", html.escape(csrf_token))
+    return HTMLResponse(page_html)
 
 
 @router.post("/login")
@@ -52,7 +68,13 @@ def login_post(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    csrf_token: str = Form(...),
 ):
+    if not verify_csrf_token(request.session.get("csrf_token"), csrf_token):
+        return JSONResponse(
+            {"success": False, "error": "Invalid or missing CSRF token."},
+            status_code=403,
+        )
     return auth_service.login(request, username, password)
 
 

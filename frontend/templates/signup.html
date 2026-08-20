@@ -51,6 +51,8 @@
 
         <section class="auth-right">
             <form id="signup-form" class="auth-form" action="/signup" method="POST" novalidate>
+                <input type="hidden" name="csrf_token" value="{{csrf_token}}">
+
                 <h2 class="form-title">Sign Up</h2>
                 <p class="form-subtitle">Create your account to access the lab</p>
 

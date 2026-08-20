@@ -16,7 +16,8 @@ An intentionally vulnerable web application built for hands-on OWASP Top 10 secu
 - **VULN-2 (Stored XSS) — remediated (`v0.1.4`):** `welcome_page()` in `auth.py` now passes the session's `username` through Python's standard-library `html.escape()` before substituting it into `dashboard.html`'s `{{username}}` placeholder, so a username stored as `<script>alert(1)</script>` (or any other markup/attribute-breakout payload) renders as inert, literal escaped text instead of executing.
 - **VULN-6 (Exposed Database) — remediated:** `download_db()` in `auth.py` now requires an authenticated session — a request with no `user_id` in `request.session` is redirected to `/login` (302) instead of receiving the SQLite file. This app has no role/admin system, so the fix is "authenticated users only," not "admin only": any logged-in user (including one who just self-registered) can still download the full database, including other users' rows. This is a documented, intentional residual limitation — see `.claude/specs/exposed-database-fix.md`.
 - **VULN-3 (Reflected XSS) — remediated:** `search_user()` in `auth.py` (`GET /search`) has been fixed for all three issues bundled into that route — the string-concatenated SQL query now uses `?` placeholders with a bound parameter tuple (same pattern as the VULN-1 fix), the `q` value and each result row's `username`/`email` are passed through `html.escape()` before being embedded in the response HTML, and the exception handler no longer leaks raw exception text, returning a fixed generic message instead.
-- **VULN-7 (No Rate Limiting) — remediated:** `POST /login` and `POST /signup` in `auth.py` are now rate-limited to **5 requests per minute per client IP** via [`slowapi`](https://github.com/laurentS/slowapi) (an in-memory, token-bucket limiter built on `limits`), wired up in `main.py` (`Limiter` on `app.state.limiter`, `RateLimitExceeded` → `429` JSON). A 6th request within the same minute gets `429 Too Many Requests` instead of reaching the login/signup logic; the limit resets on a rolling one-minute window. `/welcome`, `/search`, `/download/db`, and `/logout` remain unthrottled — this fix targets only the credential-guessing/account-creation surface. **This is an in-memory, single-process limiter suitable for this lab's single-process/localhost deployment model — not a production-grade distributed rate limiter** (counters aren't shared across processes/replicas, reset on restart, and key on client IP, which is spoofable behind NAT/a proxy). **All 8 original vulnerabilities are now remediated except VULN-8 (CSRF)** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
+- **VULN-7 (No Rate Limiting) — remediated:** `POST /login` and `POST /signup` in `auth.py` are now rate-limited to **5 requests per minute per client IP** via [`slowapi`](https://github.com/laurentS/slowapi) (an in-memory, token-bucket limiter built on `limits`), wired up in `main.py` (`Limiter` on `app.state.limiter`, `RateLimitExceeded` → `429` JSON). A 6th request within the same minute gets `429 Too Many Requests` instead of reaching the login/signup logic; the limit resets on a rolling one-minute window. `/welcome`, `/search`, `/download/db`, and `/logout` remain unthrottled — this fix targets only the credential-guessing/account-creation surface. **This is an in-memory, single-process limiter suitable for this lab's single-process/localhost deployment model — not a production-grade distributed rate limiter** (counters aren't shared across processes/replicas, reset on restart, and key on client IP, which is spoofable behind NAT/a proxy).
+- **VULN-8 (CSRF) — remediated:** `GET /login` and `GET /signup` now generate a session-stored CSRF token (`secrets.token_hex(32)`, in a new `backend/app/core/security`-sibling module, `backend/app/core/csrf.py`) if the session doesn't already have one, and inject it into the rendered page — a hidden `csrf_token` input in `signup.html`'s native form, and a `data-csrf-token` attribute on `login.html`'s form that its existing inline `fetch()` script reads and appends to the submitted body. `POST /login` and `POST /signup` now require a matching `csrf_token` field, verified against the session's value via `secrets.compare_digest` (constant-time); a missing or mismatched token is rejected with `403` (JSON for `/login`'s fetch flow, an HTML error for `/signup`'s form flow) before any authentication or account-creation logic runs. `/logout` is a `GET` request and is intentionally left out of scope for token validation — that pre-existing "logout as a state-changing GET" design choice is unrelated to VULN-8 and is not changed by this fix. **All 8 original vulnerabilities are now remediated** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
 
 ## Getting Started
 
@@ -47,9 +48,10 @@ Three-layer architecture: Presentation (HTML/CSS/JS) → Application (FastAPI) �
 backend/app/
 ├── main.py                    # Entry point, session middleware (VULN-4 remediated), rate limiter (VULN-7 remediated), static mounts, DB init
 ├── core/security.py           # Password hashing: bcrypt, work factor 12 (VULN-5 remediated)
+├── core/csrf.py               # CSRF token generation/verification (VULN-8 remediated)
 ├── db/session.py              # SQLite connection + init_db()
 ├── services/auth_service.py   # signup()/login() business logic (VULN-1 remediated — parameterized queries)
-└── api/routes/auth.py         # HTTP route handlers (VULN-2, VULN-3, VULN-6, VULN-7 remediated)
+└── api/routes/auth.py         # HTTP route handlers (VULN-2, VULN-3, VULN-6, VULN-7, VULN-8 remediated)
 
 frontend/
 ├── templates/                 # login.html, signup.html, dashboard.html — read from disk per request, no caching
@@ -73,7 +75,7 @@ frontend/
 | 5 | Weak Password Storage | **Remediated** (bcrypt, work factor ≥ 12) | `backend/app/core/security.py` |
 | 6 | Exposed Database | **Remediated** (session check on `GET /download/db`; authenticated-only, no role/admin tier) | `backend/app/api/routes/auth.py` |
 | 7 | No Rate Limiting | **Remediated** (`slowapi`, 5/minute per IP on `/login` and `/signup`; in-memory, single-process limiter) | `backend/app/main.py`, `backend/app/api/routes/auth.py` |
-| 8 | CSRF | Unfixed (intentional) | *(absence of CSRF tokens/middleware)* |
+| 8 | CSRF | **Remediated** (session-stored token, `secrets.compare_digest` verification, on `/login` and `/signup` only) | `backend/app/core/csrf.py`, `backend/app/api/routes/auth.py` |
 
 ## Specifications
 
@@ -88,6 +90,7 @@ Every feature and remediation in this repo is spec-driven. See `.claude/specs/`:
 - `exposed-database-fix.md` / `exposed-database-fix-plan.md` — the VULN-6 remediation.
 - `reflected-xss-fix.md` / `reflected-xss-fix-plan.md` — the VULN-3 remediation.
 - `rate-limiting-fix.md` / `rate-limiting-fix-plan.md` — the VULN-7 remediation.
+- `csrf-protection-fix.md` / `csrf-protection-fix-plan.md` — the VULN-8 remediation.
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.
 
