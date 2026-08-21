@@ -18,6 +18,7 @@ An intentionally vulnerable web application built for hands-on OWASP Top 10 secu
 - **VULN-3 (Reflected XSS) — remediated:** `search_user()` in `auth.py` (`GET /search`) has been fixed for all three issues bundled into that route — the string-concatenated SQL query now uses `?` placeholders with a bound parameter tuple (same pattern as the VULN-1 fix), the `q` value and each result row's `username`/`email` are passed through `html.escape()` before being embedded in the response HTML, and the exception handler no longer leaks raw exception text, returning a fixed generic message instead.
 - **VULN-7 (No Rate Limiting) — remediated:** `POST /login` and `POST /signup` in `auth.py` are now rate-limited to **5 requests per minute per client IP** via [`slowapi`](https://github.com/laurentS/slowapi) (an in-memory, token-bucket limiter built on `limits`), wired up in `main.py` (`Limiter` on `app.state.limiter`, `RateLimitExceeded` → `429` JSON). A 6th request within the same minute gets `429 Too Many Requests` instead of reaching the login/signup logic; the limit resets on a rolling one-minute window. `/welcome`, `/search`, `/download/db`, and `/logout` remain unthrottled — this fix targets only the credential-guessing/account-creation surface. **This is an in-memory, single-process limiter suitable for this lab's single-process/localhost deployment model — not a production-grade distributed rate limiter** (counters aren't shared across processes/replicas, reset on restart, and key on client IP, which is spoofable behind NAT/a proxy).
 - **VULN-8 (CSRF) — remediated:** `GET /login` and `GET /signup` now generate a session-stored CSRF token (`secrets.token_hex(32)`, in a new `backend/app/core/security`-sibling module, `backend/app/core/csrf.py`) if the session doesn't already have one, and inject it into the rendered page — a hidden `csrf_token` input in `signup.html`'s native form, and a `data-csrf-token` attribute on `login.html`'s form that its existing inline `fetch()` script reads and appends to the submitted body. `POST /login` and `POST /signup` now require a matching `csrf_token` field, verified against the session's value via `secrets.compare_digest` (constant-time); a missing or mismatched token is rejected with `403` (JSON for `/login`'s fetch flow, an HTML error for `/signup`'s form flow) before any authentication or account-creation logic runs. `/logout` is a `GET` request and is intentionally left out of scope for token validation — that pre-existing "logout as a state-changing GET" design choice is unrelated to VULN-8 and is not changed by this fix. **All 8 original vulnerabilities are now remediated** — see [`CLAUDE.md`](./CLAUDE.md) for the current vulnerability map.
+- **Password strength meter (`v1.0.1`):** a real-time, advisory-only strength indicator was added to the signup form. As the user types into **Password**, a live checklist (minimum length 8, one lowercase letter, one uppercase letter, one digit, one special character) and a Weak/Fair/Good/Strong meter update on every keystroke. It's purely client-side UX — it never blocks form submission and adds no new field to `POST /signup`; the backend continues to accept any non-empty password and hash it with bcrypt exactly as before. See `.claude/specs/pwd-str-meter.md`.
 
 ## Getting Started
 
@@ -56,13 +57,15 @@ backend/app/
 frontend/
 ├── templates/                 # login.html, signup.html, dashboard.html — read from disk per request, no caching
 │                               # each includes a light/dark theme toggle in the shared header
-└── static/                    # css/styles.css (CSS custom properties + dark theme overrides), images/
+│                               # signup.html also includes the password strength meter/checklist (client-side only)
+└── static/                    # css/styles.css (CSS custom properties + dark theme overrides + password-strength tokens), images/
 ```
 
 ## Features
 
 - **Signup / Login / Dashboard / Logout** — session-based auth flow (see [`CLAUDE.md`](./CLAUDE.md) for the exact request/response contract).
 - **Dark mode toggle** — a header button on every page switches between light and dark themes via a `data-theme` attribute on `<html>`, driven entirely by CSS custom properties. The choice persists in the browser's `localStorage` and falls back to the OS's `prefers-color-scheme` when nothing is stored. No backend route, session field, or database column is involved — this is a client-only, additive UI feature.
+- **Password strength meter** — on the signup form, a live checklist (minimum length 8, lowercase, uppercase, digit, special character) and a Weak/Fair/Good/Strong meter update as the user types into **Password**. Advisory only — it never blocks submission or adds a field to the request; no backend route, session field, or database column is involved.
 
 ## Vulnerability Map
 
@@ -91,6 +94,7 @@ Every feature and remediation in this repo is spec-driven. See `.claude/specs/`:
 - `reflected-xss-fix.md` / `reflected-xss-fix-plan.md` — the VULN-3 remediation.
 - `rate-limiting-fix.md` / `rate-limiting-fix-plan.md` — the VULN-7 remediation.
 - `csrf-protection-fix.md` / `csrf-protection-fix-plan.md` — the VULN-8 remediation.
+- `pwd-str-meter.md` / `pwd-str-meter-plan.md` — the password strength meter feature (`v1.0.1`).
 
 Prompts that generated each spec/plan/implementation live under `docs/prompts/`.
 

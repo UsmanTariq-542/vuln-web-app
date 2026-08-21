@@ -69,6 +69,36 @@
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" autocomplete="new-password" required>
+
+                    <div class="pwd-strength" id="pwd-strength" aria-live="polite">
+                        <div class="pwd-strength-track">
+                            <div class="pwd-strength-fill" id="pwd-strength-fill" data-level="weak"></div>
+                        </div>
+                        <span class="pwd-strength-label" id="pwd-strength-label" data-level="weak">Weak</span>
+                    </div>
+
+                    <ul class="pwd-checklist" id="pwd-checklist">
+                        <li data-met="false" data-rule="length">
+                            <span class="pwd-check-icon" aria-hidden="true">&#10007;</span>
+                            <span>At least 8 characters</span>
+                        </li>
+                        <li data-met="false" data-rule="lower">
+                            <span class="pwd-check-icon" aria-hidden="true">&#10007;</span>
+                            <span>One lowercase letter</span>
+                        </li>
+                        <li data-met="false" data-rule="upper">
+                            <span class="pwd-check-icon" aria-hidden="true">&#10007;</span>
+                            <span>One uppercase letter</span>
+                        </li>
+                        <li data-met="false" data-rule="digit">
+                            <span class="pwd-check-icon" aria-hidden="true">&#10007;</span>
+                            <span>One digit</span>
+                        </li>
+                        <li data-met="false" data-rule="special">
+                            <span class="pwd-check-icon" aria-hidden="true">&#10007;</span>
+                            <span>One special character</span>
+                        </li>
+                    </ul>
                 </div>
 
                 <div class="form-group">
@@ -111,6 +141,60 @@
                     /* localStorage unavailable; theme still applied for this page view */
                 }
             });
+        })();
+    </script>
+
+    <script>
+        (function () {
+            var passwordInput = document.getElementById('password');
+            var fillEl = document.getElementById('pwd-strength-fill');
+            var labelEl = document.getElementById('pwd-strength-label');
+            var checklistItems = document.querySelectorAll('#pwd-checklist li[data-rule]');
+
+            var RULES = {
+                length: function (v) { return v.length >= 8; },
+                lower: function (v) { return /[a-z]/.test(v); },
+                upper: function (v) { return /[A-Z]/.test(v); },
+                digit: function (v) { return /[0-9]/.test(v); },
+                special: function (v) { return /[^A-Za-z0-9]/.test(v); }
+            };
+
+            function levelFor(metCount) {
+                if (metCount <= 1) return 'weak';
+                if (metCount <= 2) return 'fair';
+                if (metCount <= 4) return 'good';
+                return 'strong';
+            }
+
+            function levelLabel(level) {
+                return { weak: 'Weak', fair: 'Fair', good: 'Good', strong: 'Strong' }[level];
+            }
+
+            function levelFillPercent(level) {
+                return { weak: 20, fair: 45, good: 70, strong: 100 }[level];
+            }
+
+            function update() {
+                var value = passwordInput.value;
+                var metCount = 0;
+
+                checklistItems.forEach(function (item) {
+                    var rule = item.getAttribute('data-rule');
+                    var met = RULES[rule](value);
+                    if (met) metCount += 1;
+                    item.setAttribute('data-met', met ? 'true' : 'false');
+                    item.querySelector('.pwd-check-icon').innerHTML = met ? '&#10003;' : '&#10007;';
+                });
+
+                var level = value.length === 0 ? 'weak' : levelFor(metCount);
+                fillEl.setAttribute('data-level', level);
+                fillEl.style.width = value.length === 0 ? '0%' : levelFillPercent(level) + '%';
+                labelEl.setAttribute('data-level', level);
+                labelEl.textContent = levelLabel(level);
+            }
+
+            passwordInput.addEventListener('input', update);
+            update();
         })();
     </script>
 
